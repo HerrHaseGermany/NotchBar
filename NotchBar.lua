@@ -24,8 +24,8 @@ end
 local bar = CreateFrame("Frame", "NotchBarFrame", UIParent)
 bar:SetFrameStrata("FULLSCREEN_DIALOG")
 bar:SetFrameLevel(9999)
-bar:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
-bar:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
+bar:SetPoint("BOTTOMLEFT", UIParent, "TOPLEFT", 0, 0)
+bar:SetPoint("BOTTOMRIGHT", UIParent, "TOPRIGHT", 0, 0)
 
 local tex = bar:CreateTexture(nil, "BACKGROUND")
 tex:SetAllPoints(true)

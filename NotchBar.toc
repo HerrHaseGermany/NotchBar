@@ -4,5 +4,6 @@
 ## Author: Hase
 ## Version: 1.0.0
 ## SavedVariables: NotchBarDB
+## IconTexture: Interface/AddOns/NotchBar/Media/logo.blp
 
 NotchBar.lua
