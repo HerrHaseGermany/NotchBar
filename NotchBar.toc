@@ -1,0 +1,8 @@
+## Interface: 11508, 20505
+## Title: NotchBar
+## Notes: Adds a black top bar to mask the macOS notch area (auto or manual height).
+## Author: Hase
+## Version: 1.0.0
+## SavedVariables: NotchBarDB
+
+NotchBar.lua
