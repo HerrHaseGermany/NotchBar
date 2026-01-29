@@ -136,9 +136,3 @@ Main implementation:
 
 **I only want it on the internal MacBook display**
 - Not implemented by default (WoW doesn’t provide a reliable way to identify which display you’re on from the AddOn API). You can toggle manually with `/notchbar off`.
-
----
-
-## License
-
-Do whatever you want with it (MIT-style spirit). If you share it, please keep attribution.
