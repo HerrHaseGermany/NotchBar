@@ -11,6 +11,8 @@ local defaults = {
   ratio = 0.038,     -- ~3.8% of UIParent height
   clampMin = 50,
   clampMax = 110,
+  fixUIParent = true, -- match UIParent to WorldFrame (notch safe-area fix)
+  widgetTopOffset = -30, -- y-offset for UIWidgetTopCenterContainerFrame
 }
 
 local function ApplyDefaults()
@@ -59,104 +61,107 @@ local function UpdateBar()
   bar:Show()
 end
 
+-- Optional: match UIParent to WorldFrame to avoid notch safe-area offsets
+local uiParentDefaults = { captured = false, points = {} }
+local fixApplied = false
+local fixPending = nil
+local fixTicker = nil
+local widgetPending = false
+
+local function CaptureUIParentDefaults()
+  if uiParentDefaults.captured then return end
+  local n = UIParent:GetNumPoints()
+  uiParentDefaults.num = n
+  for i = 1, n do
+    local point, rel, relPoint, x, y = UIParent:GetPoint(i)
+    uiParentDefaults.points[i] = { point, rel, relPoint, x, y }
+  end
+  uiParentDefaults.captured = true
+end
+
+local function TryApplyUIParentFix()
+  if InCombatLockdown and InCombatLockdown() then
+    fixPending = "apply"
+    return
+  end
+  fixPending = nil
+  if UIParent:GetNumPoints() == 1 then
+    local p, rel, relPoint, x, y = UIParent:GetPoint(1)
+    if p == "CENTER" and rel == WorldFrame and relPoint == "CENTER" and x == 0 and y == 0 then
+      fixApplied = true
+      return
+    end
+  end
+  UIParent:ClearAllPoints()
+  UIParent:SetAllPoints(WorldFrame)
+  fixApplied = true
+end
+
+local function TryRestoreUIParentFix()
+  if not fixApplied or not uiParentDefaults.captured then return end
+  if InCombatLockdown and InCombatLockdown() then
+    fixPending = "restore"
+    return
+  end
+  fixPending = nil
+  UIParent:ClearAllPoints()
+  for i = 1, uiParentDefaults.num do
+    local p = uiParentDefaults.points[i]
+    UIParent:SetPoint(p[1], p[2], p[3], p[4], p[5])
+  end
+  fixApplied = false
+end
+
+local function UpdateUIParentFix()
+  CaptureUIParentDefaults()
+  TryApplyUIParentFix()
+end
+
+local function StartUIParentFixTicker()
+  if fixTicker or not C_Timer or not C_Timer.NewTicker then return end
+  fixTicker = C_Timer.NewTicker(2, function()
+    TryApplyUIParentFix()
+  end)
+end
+
+local function TryUpdateWidgetTopCenter()
+  if not UIWidgetTopCenterContainerFrame then return end
+  if InCombatLockdown and InCombatLockdown() then
+    widgetPending = true
+    return
+  end
+  widgetPending = false
+  UIWidgetTopCenterContainerFrame:ClearAllPoints()
+  UIWidgetTopCenterContainerFrame:SetPoint("TOP", UIParent, "TOP", 0, tonumber(NotchBarDB.widgetTopOffset) or 0)
+end
+
+local function UpdateWidgetTopCenter()
+  TryUpdateWidgetTopCenter()
+end
+
 -- Events
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:RegisterEvent("UI_SCALE_CHANGED")
 ev:RegisterEvent("DISPLAY_SIZE_CHANGED")
-ev:SetScript("OnEvent", function()
+ev:RegisterEvent("PLAYER_REGEN_ENABLED")
+ev:RegisterEvent("PLAYER_ENTERING_WORLD")
+ev:RegisterEvent("ZONE_CHANGED")
+ev:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+ev:SetScript("OnEvent", function(_, event)
+  if event == "PLAYER_REGEN_ENABLED" and fixPending then
+    if fixPending == "apply" then
+      TryApplyUIParentFix()
+    elseif fixPending == "restore" then
+      TryRestoreUIParentFix()
+    end
+  end
+  if event == "PLAYER_REGEN_ENABLED" and widgetPending then
+    TryUpdateWidgetTopCenter()
+  end
   ApplyDefaults()
+  UpdateUIParentFix()
+  StartUIParentFixTicker()
+  UpdateWidgetTopCenter()
   UpdateBar()
 end)
-
--- Slash commands
-SLASH_NOTCHBAR1 = "/notchbar"
-SLASH_NOTCHBAR2 = "/notch"
-
-local function Print(msg)
-  DEFAULT_CHAT_FRAME:AddMessage("|cff00ffccNotchBar:|r " .. msg)
-end
-
-SlashCmdList.NOTCHBAR = function(input)
-  input = (input or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
-
-  if input == "" or input == "help" then
-    Print("Commands:")
-    Print("/notchbar auto            - auto height (recommended)")
-    Print("/notchbar <number>        - manual height (e.g. /notchbar 74)")
-    Print("/notchbar on | off        - enable/disable")
-    Print("/notchbar status          - show current settings")
-    Print("/notchbar ratio <number>  - set auto ratio (default 0.038)")
-    Print("/notchbar clamp <min> <max> - clamp auto height (default 50 110)")
-    return
-  end
-
-  if input == "on" then
-    NotchBarDB.enabled = true
-    UpdateBar()
-    Print("Enabled.")
-    return
-  end
-
-  if input == "off" then
-    NotchBarDB.enabled = false
-    UpdateBar()
-    Print("Disabled.")
-    return
-  end
-
-  if input == "auto" then
-    NotchBarDB.mode = "auto"
-    UpdateBar()
-    Print(string.format("Mode: auto (ratio %.3f, clamp %d..%d).",
-      NotchBarDB.ratio, NotchBarDB.clampMin, NotchBarDB.clampMax))
-    return
-  end
-
-  if input == "status" then
-    Print(string.format("enabled=%s, mode=%s, manualHeight=%s, ratio=%.3f, clamp=%d..%d",
-      tostring(NotchBarDB.enabled),
-      tostring(NotchBarDB.mode),
-      tostring(NotchBarDB.manualHeight),
-      tonumber(NotchBarDB.ratio) or defaults.ratio,
-      tonumber(NotchBarDB.clampMin) or defaults.clampMin,
-      tonumber(NotchBarDB.clampMax) or defaults.clampMax
-    ))
-    return
-  end
-
-  do
-    local r = input:match("^ratio%s+([%d%.]+)$")
-    if r then
-      NotchBarDB.ratio = tonumber(r) or defaults.ratio
-      NotchBarDB.mode = "auto"
-      UpdateBar()
-      Print("Auto ratio set to " .. tostring(NotchBarDB.ratio) .. " (mode auto).")
-      return
-    end
-  end
-
-  do
-    local mn, mx = input:match("^clamp%s+(%d+)%s+(%d+)$")
-    if mn and mx then
-      NotchBarDB.clampMin = tonumber(mn)
-      NotchBarDB.clampMax = tonumber(mx)
-      NotchBarDB.mode = "auto"
-      UpdateBar()
-      Print(string.format("Clamp set to %d..%d (mode auto).", NotchBarDB.clampMin, NotchBarDB.clampMax))
-      return
-    end
-  end
-
-  local n = tonumber(input)
-  if n then
-    NotchBarDB.mode = "manual"
-    NotchBarDB.manualHeight = n
-    NotchBarDB.enabled = true
-    UpdateBar()
-    Print("Mode: manual, height set to " .. n .. ".")
-    return
-  end
-
-  Print("Unknown command. Use /notchbar help")
-end

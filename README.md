@@ -1,96 +1,44 @@
 # NotchBar
 
-A tiny WoW AddOn for macOS “notched” MacBooks that draws a **black bar at the very top of the screen** to hide UI elements (including other addons’ fullscreen overlays) that appear behind/under the notch area.
+A tiny WoW AddOn for macOS “notched” MacBooks that **aligns UIParent to WorldFrame** to eliminate notch safe-area offsets and prevent UI elements from drifting after reload.
 
-This AddOn **does not** change the 3D render viewport or macOS safe-area handling. It only masks the **WoW UI layer**.
+This AddOn **does not** change the 3D render viewport or macOS safe-area handling. It only adjusts the **WoW UI layer** anchoring and positions the top-center widget container.
 
 ---
 
 ## Features
 
-- ✅ Black bar anchored to the top of `UIParent` (works in **Fullscreen** and **Fullscreen (Windowed)**)
-- ✅ Auto height mode (scales with resolution + UI scale via a ratio)
-- ✅ Manual height mode (set it once if you want pixel-perfect)
+- ✅ Forces `UIParent` to match `WorldFrame` size to avoid notch safe-area offsets
+- ✅ Reapplies alignment automatically if another addon changes it
+- ✅ Moves `UIWidgetTopCenterContainerFrame` to `UIParent TOP` with a configurable offset (default `0, -30`)
 - ✅ Account-wide SavedVariables
-- ✅ Simple slash commands
 
 ---
 
 ## Installation
 
 1. Close World of Warcraft.
-2. Create this folder:
-
-   - Retail: `World of Warcraft/_retail_/Interface/AddOns/NotchBar/`
-   - Classic (if needed): `World of Warcraft/_classic_/Interface/AddOns/NotchBar/`
-
-3. Put these files inside:
-
-   - `NotchBar.toc`
-   - `NotchBar.lua`
-
+2. Download and unpack
+3. drag or copy to '/World of Warcraft/_classic_era_/Interface'
+   or '/World of Warcraft/_anniversary_/Interface'
 4. Start WoW.
 5. In the AddOns menu, enable **NotchBar**.
-6. (Optional) Check **Load out of date AddOns** if WoW complains after a patch.
 
 ---
 
 ## Usage
 
-### Slash commands
-
-- `/notchbar help`  
-  Show all commands.
-
-- `/notchbar auto`  
-  Enable **auto** mode (recommended). Height is computed as a ratio of screen/UI height and clamped to safe bounds.
-
-- `/notchbar <number>`  
-  Enable **manual** mode with a fixed height (example: `/notchbar 74`).
-
-- `/notchbar on`  
-  Enable the bar.
-
-- `/notchbar off`  
-  Disable the bar.
-
-- `/notchbar status`  
-  Show current settings.
-
-### Advanced tuning (optional)
-
-- `/notchbar ratio <number>`  
-  Sets the auto-mode ratio (default `0.038`).  
-  Example: `/notchbar ratio 0.040`
-
-- `/notchbar clamp <min> <max>`  
-  Sets the min/max height used in auto mode (default `50 110`).  
-  Example: `/notchbar clamp 60 100`
-
----
-
-## Recommended settings
-
-- Start with: `/notchbar auto`
-- If you want “set and forget” perfect coverage:
-  1. Adjust once using `/notchbar 70`, `/notchbar 74`, `/notchbar 80`, etc.
-  2. Keep the one that fully masks the notch strip without covering too much UI.
+No slash commands. Install and it applies automatically.
 
 ---
 
 ## How it works
 
-The AddOn creates a frame anchored to the top edge of `UIParent`:
+The AddOn:
 
-- The frame is given a very high `FrameStrata` / `FrameLevel`
-- A solid black texture fills the frame
-- Auto mode computes height as a ratio of `UIParent:GetHeight()`
-
-This means:
-
-- The bar always stays at the top in any WoW display mode
-- The bar scales sensibly across UI scale and resolution changes
-- The bar hides UI textures drawn underneath it (including many addon overlays)
+- Re-anchors `UIParent` to `WorldFrame` so UI coordinates match full-screen rendering
+- Reapplies the anchor periodically and on key events to avoid other addons reverting it
+- Repositions `UIWidgetTopCenterContainerFrame` to `UIParent TOP` with `0, -30`
 
 ---
 
@@ -99,7 +47,7 @@ This means:
 - This AddOn cannot:
   - change the game’s **3D render** size or macOS fullscreen safe-area behavior
   - “detect the notch” directly (WoW AddOns don’t have access to macOS safe-area insets)
-- Some UI elements could still appear above the bar if another addon draws at an even higher strata/level (rare). If that happens, increase `FrameStrata` / `FrameLevel` in `NotchBar.lua`.
+- Another addon may still fight the anchoring; the periodic reapply should keep it aligned.
 
 ---
 
@@ -110,9 +58,9 @@ Contains metadata and loads `NotchBar.lua`.
 
 ### `NotchBar.lua`
 Main implementation:
-- Creates the black top bar
+- Aligns `UIParent` to `WorldFrame`
+- Repositions `UIWidgetTopCenterContainerFrame`
 - Stores settings in `NotchBarDB`
-- Provides `/notchbar` commands
 - Updates on:
   - `PLAYER_LOGIN`
   - `UI_SCALE_CHANGED`
