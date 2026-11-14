@@ -1,0 +1,9 @@
+
+# Git archive allowlist: exclude new files until their runtime role is reviewed.
+# Keep this list in sync with every client TOC, XML include and dynamic resource.
+* export-ignore
+/Media -export-ignore
+/LICENSE -export-ignore
+/Media/logo.blp -export-ignore
+/NotchBar.lua -export-ignore
+/NotchBar.toc -export-ignore
