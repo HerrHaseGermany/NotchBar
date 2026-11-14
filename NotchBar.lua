@@ -79,7 +79,16 @@ local function CaptureUIParentDefaults()
   uiParentDefaults.captured = true
 end
 
+local TryRestoreUIParentFix
+
 local function TryApplyUIParentFix()
+  -- Offhand anchors WorldFrame to UIParent, including its disabled/reset path.
+  -- Reversing that relationship creates a native anchor cycle and can freeze
+  -- the client before Lua can report an error. Keep the notch bar itself active.
+  if NotchBarDB.fixUIParent == false or type(_G.Offhand) == "table" then
+    TryRestoreUIParentFix()
+    return
+  end
   if InCombatLockdown and InCombatLockdown() then
     fixPending = "apply"
     return
@@ -97,7 +106,7 @@ local function TryApplyUIParentFix()
   fixApplied = true
 end
 
-local function TryRestoreUIParentFix()
+TryRestoreUIParentFix = function()
   if not fixApplied or not uiParentDefaults.captured then return end
   if InCombatLockdown and InCombatLockdown() then
     fixPending = "restore"
@@ -141,6 +150,7 @@ end
 
 -- Events
 local ev = CreateFrame("Frame")
+ev:RegisterEvent("ADDON_LOADED")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:RegisterEvent("UI_SCALE_CHANGED")
 ev:RegisterEvent("DISPLAY_SIZE_CHANGED")
@@ -148,7 +158,8 @@ ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 ev:RegisterEvent("PLAYER_ENTERING_WORLD")
 ev:RegisterEvent("ZONE_CHANGED")
 ev:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-ev:SetScript("OnEvent", function(_, event)
+ev:SetScript("OnEvent", function(_, event, loadedAddon)
+  if event == "ADDON_LOADED" and loadedAddon ~= "Offhand" then return end
   if event == "PLAYER_REGEN_ENABLED" and fixPending then
     if fixPending == "apply" then
       TryApplyUIParentFix()

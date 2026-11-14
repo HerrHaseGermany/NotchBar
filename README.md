@@ -44,6 +44,14 @@ The AddOn:
 
 ## Limitations
 
+When Offhand is loaded, NotchBar keeps its black bar and top-center widget
+placement but leaves UIParent's original screen anchors intact. Offhand anchors
+WorldFrame to UIParent even when resetting its viewport; anchoring UIParent back
+to WorldFrame would create a circular dependency. The saved `fixUIParent`
+preference is preserved and applies again on a subsequent launch without
+Offhand. Setting that preference to `false` also disables the alignment when
+NotchBar runs alone.
+
 - This AddOn cannot:
   - change the game’s **3D render** size or macOS fullscreen safe-area behavior
   - “detect the notch” directly (WoW AddOns don’t have access to macOS safe-area insets)
